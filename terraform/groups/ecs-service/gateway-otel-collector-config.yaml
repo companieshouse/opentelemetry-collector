@@ -3,6 +3,11 @@ receivers:
     protocols:
       http:
         endpoint: 0.0.0.0:4318
+  # Local receiver ONLY for Collector self-telemetry
+  otlp/telemetry:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4319
 processors:
   batch/traces:
     timeout: 1s
@@ -44,10 +49,24 @@ exporters:
   awsemf:
     namespace: ECS/AWSOTel/Application
     log_group_name: '/aws/ecs/application/metrics'
+
+  awsemf/collector:
+    namespace: ECS/AWSOTel/Collector
+    log_group_name: '/aws/ecs/otel-collector/metrics'
+
   debug:
     verbosity: detailed
 service:
   extensions: [health_check]
+  # Emit Collector self-telemetry via OTLP to the local receiver
+  telemetry:
+    metrics:
+      readers:
+        - periodic:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://127.0.0.1:4319
   pipelines:
     traces:
       receivers: [otlp]
@@ -57,4 +76,7 @@ service:
       receivers: [otlp]
       processors: [batch/metrics]
       exporters: [awsemf]
-
+    metrics/collector:
+      receivers: [otlp/telemetry]
+      processors: [batch/metrics]
+      exporters: [awsemf/collector]
