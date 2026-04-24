@@ -5,8 +5,23 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+
 processors:
   batch:
+  transform:
+    trace_statements:
+      - set(
+          span.attributes["http.url"],
+          Concat([
+            span.attributes["url.scheme"],
+            "://",
+            span.attributes["server.address"],
+            span.attributes["url.path"],
+            "?",
+            span.attributes["url.query"]
+          ], "")
+        )
+        where span.attributes["url.query"] != nil and span.attributes["url.query"] != ""
 
 extensions:
   health_check:
@@ -25,7 +40,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [batch, transform]
       exporters: [debug]
     metrics:
       receivers: [otlp]
@@ -35,4 +50,3 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [debug]
-
