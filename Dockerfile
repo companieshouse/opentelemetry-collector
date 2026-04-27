@@ -18,7 +18,7 @@ WORKDIR /build
 
 COPY ./resources/builder-config.yaml builder-config.yaml
 
-RUN --mount=type=cache,target=/root/.cache/go-build GO111MODULE=on go install go.opentelemetry.io/collector/cmd/builder@v0.128.0
+RUN --mount=type=cache,target=/root/.cache/go-build GO111MODULE=on go install go.opentelemetry.io/collector/cmd/builder@v0.150.0
 
 ENV PATH="$PATH:/root/go/bin"
 RUN --mount=type=cache,target=/root/.cache/go-build builder --config builder-config.yaml
