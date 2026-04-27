@@ -14,6 +14,20 @@ processors:
     send_batch_size: 50
   batch/metrics:
     timeout: 60s
+  transform:
+    trace_statements:
+      - set(
+          span.attributes["http.url"],
+          Concat([
+            span.attributes["url.scheme"],
+            "://",
+            span.attributes["server.address"],
+            span.attributes["url.path"],
+            "?",
+            span.attributes["url.query"]
+          ], "")
+        )
+        where span.attributes["url.query"] != nil and span.attributes["url.query"] != ""
 
   filter/drop_healthcheck_attributes:
     traces:
@@ -70,7 +84,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch/traces,filter/drop_healthcheck_attributes,tail_sampling]
+      processors: [batch/traces,filter/drop_healthcheck_attributes,tail_sampling,transform]
       exporters: [debug,awsxray]
     metrics:
       receivers: [otlp]
