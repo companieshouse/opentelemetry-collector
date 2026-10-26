@@ -1,0 +1,104 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  # Local receiver ONLY for Collector self-telemetry
+  otlp/telemetry:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4319
+processors:
+  batch/traces:
+    timeout: 1s
+    send_batch_size: 50
+  batch/metrics:
+    timeout: 60s
+
+  filter/drop_healthcheck_attributes:
+    error_mode: ignore
+    traces:
+      span:
+        - 'IsMatch(attributes["url.path"], ".*healthcheck.*")'
+        - 'IsMatch(attributes["http.target"], ".*healthcheck.*")'
+        - 'IsMatch(attributes["http.route"], ".*healthcheck.*")'
+        - 'IsMatch(attributes["http.url"], ".*healthcheck.*")'
+        - 'IsMatch(attributes["uri"], ".*healthcheck.*")'
+        - 'IsMatch(name, ".*healthcheck.*")'
+
+  # X-Ray names each segment from `peer.service` if present, otherwise from the resource `service.name`.
+  # Our Kafka listeners spans have `peer.service = "Apache Kafka: <cluster>"`, so they become segments with that name
+  # (not visible alongside all the others).
+  # With the attribute gone, they are named as expected: service("<service.name>")
+  transform/consumer_service_name:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # limits it to Consumer spans
+          - delete_key(attributes, "peer.service") where kind == SPAN_KIND_CONSUMER
+
+  tail_sampling:
+    decision_wait: 2s
+    policies: [
+      {
+        name: error-traces,
+        type: status_code,
+        status_code: { status_codes: [ ERROR ] }
+      },
+      {
+        name: normal-traces,
+        type: probabilistic,
+        probabilistic: { sampling_percentage: 100 }
+      },
+    ]
+
+extensions:
+  health_check:
+    endpoint: "0.0.0.0:13133"
+    path: "/health"
+    response_body:
+      healthy: "UP"
+      unhealthy: "DOWN"
+
+exporters:
+  awsxray:
+    # X-Ray bills per trace recorded/retrieved/scanned, not per annotation. Annotations are capped at 50 per segment and we use 3:
+    indexed_attributes:
+      - messaging.kafka.consumer.group
+      - messaging.source.name
+      - messaging.kafka.message.offset
+  awsemf:
+    namespace: ECS/AWSOTel/Application
+    log_group_name: '/aws/ecs/application/metrics'
+
+  awsemf/collector:
+    namespace: ECS/AWSOTel/Collector
+    log_group_name: '/aws/ecs/otel-collector/metrics'
+
+  debug:
+    verbosity: detailed
+service:
+  extensions: [health_check]
+  # Emit Collector self-telemetry via OTLP to the local receiver
+  telemetry:
+    metrics:
+      readers:
+        - periodic:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://127.0.0.1:4319
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [filter/drop_healthcheck_attributes,transform/consumer_service_name,tail_sampling,batch/traces]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch/metrics]
+      exporters: [debug]
+    metrics/collector:
+      receivers: [otlp/telemetry]
+      processors: [batch/metrics]
+      exporters: [debug]
