@@ -16,11 +16,27 @@ processors:
     timeout: 60s
 
   filter/drop_healthcheck_attributes:
+    error_mode: ignore
     traces:
       span:
         - 'IsMatch(attributes["url.path"], ".*healthcheck.*")'
         - 'IsMatch(attributes["http.target"], ".*healthcheck.*")'
         - 'IsMatch(attributes["http.route"], ".*healthcheck.*")'
+        - 'IsMatch(attributes["http.url"], ".*healthcheck.*")'
+        - 'IsMatch(attributes["uri"], ".*healthcheck.*")'
+        - 'IsMatch(name, ".*healthcheck.*")'
+
+  # X-Ray names each segment from `peer.service` if present, otherwise from the resource `service.name`.
+  # Our Kafka listeners spans have `peer.service = "Apache Kafka: <cluster>"`, so they become segments with that name
+  # (not visible alongside all the others).
+  # With the attribute gone, they are named as expected: service("<service.name>")
+  transform/consumer_service_name:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # limits it to Consumer spans
+          - delete_key(attributes, "peer.service") where kind == SPAN_KIND_CONSUMER
 
   tail_sampling:
     policies: [
@@ -46,6 +62,11 @@ extensions:
 
 exporters:
   awsxray:
+    # X-Ray bills per trace recorded/retrieved/scanned, not per annotation. Annotations are capped at 50 per segment and we use 3:
+    indexed_attributes:
+      - messaging.kafka.consumer.group
+      - messaging.source.name
+      - messaging.kafka.message.offset
   awsemf:
     namespace: ECS/AWSOTel/Application
     log_group_name: '/aws/ecs/application/metrics'
@@ -70,7 +91,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch/traces,filter/drop_healthcheck_attributes,tail_sampling]
+      processors: [filter/drop_healthcheck_attributes,transform/consumer_service_name,tail_sampling,batch/traces]
       exporters: [debug,awsxray]
     metrics:
       receivers: [otlp]
