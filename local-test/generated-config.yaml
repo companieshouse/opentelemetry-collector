@@ -36,7 +36,7 @@ processors:
       - context: span
         statements:
           # limits it to Consumer spans
-          - delete_key(attributes, "peer.service") where kind == SPAN_KIND_CONSUMER
+          - delete_key(span.attributes, "peer.service") where span.kind == SPAN_KIND_CONSUMER
 
   tail_sampling:
     decision_wait: 2s

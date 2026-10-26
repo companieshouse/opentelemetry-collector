@@ -12,7 +12,7 @@ IMAGE=${IMAGE:-otel/opentelemetry-collector-contrib:0.128.0}
 
 sed -e 's/\[debug,awsxray\]/[debug]/' \
     -e 's/exporters: \[awsemf\(\/collector\)\{0,1\}\]/exporters: [debug]/' \
-    -e 's/sampling_percentage: 5 /sampling_percentage: 100 /' \
+    -e 's/sampling_percentage: [0-9]* /sampling_percentage: 100 /' \
     -e 's/^  tail_sampling:/  tail_sampling:\n    decision_wait: 2s/' \
     "$SRC" > "$OUT"
 
