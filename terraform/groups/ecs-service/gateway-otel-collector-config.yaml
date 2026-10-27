@@ -37,6 +37,9 @@ processors:
         statements:
           # limits it to Consumer spans
           - delete_key(span.attributes, "peer.service") where span.kind == SPAN_KIND_CONSUMER
+          # The awsxray exporter only falls back to the resource `service.name` for SERVER spans; any other kind
+          # ends up named after the span (e.g. "cidev-psc-delta process"). `rpc.service` is read before that fallback.
+          - set(span.attributes["rpc.service"], resource.attributes["service.name"]) where span.kind == SPAN_KIND_CONSUMER and resource.attributes["service.name"] != nil
 
   tail_sampling:
     policies: [
