@@ -120,6 +120,7 @@ Span #0
     Status message :
 Attributes:
      -> messaging.kafka.consumer.group: Str(g1)
+     -> rpc.service: Str(my-service)
 ResourceSpans #2
 Resource SchemaURL:
 Resource attributes:
