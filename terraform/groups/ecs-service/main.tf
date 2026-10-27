@@ -40,7 +40,7 @@ module "ecs-service-otel-collector-gateway" {
   use_task_container_healthcheck = true
   healthcheck_path               = local.healthcheck_path
   healthcheck_matcher            = local.healthcheck_matcher
-  healthcheck_command            = "[[ $(curl http://localhost:${local.container_healthcheck_port}${local.container_healthcheck_path} -o /dev/null -w '%%{http_code}\\n' -s) == '${local.container_healthcheck_matcher}' ]] || exit 1"
+  healthcheck_command            = "busybox wget -q -O /dev/null http://127.0.0.1:${local.container_healthcheck_port}${local.container_healthcheck_path} || exit 1"
 
   # Docker container details
   docker_registry   = var.docker_registry

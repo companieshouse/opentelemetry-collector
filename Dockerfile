@@ -25,13 +25,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build builder --config builder-con
 
 FROM gcr.io/distroless/base:latest
 
-# sh
+# sh + wget (static busybox, used by the ECS container health check)
 COPY --from=busybox:1.37.0-uclibc /bin/sh /bin/sh
-
-# curl
-COPY --from=root /usr/bin/curl /usr/bin/curl
-COPY --from=root /lib/ /lib/
-COPY --from=root /usr/lib/ /usr/lib/
+COPY --from=busybox:1.37.0-uclibc /bin/busybox /bin/busybox
 
 ARG USER_UID=10001
 USER ${USER_UID}
