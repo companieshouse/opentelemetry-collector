@@ -56,7 +56,8 @@ The spans cover the following cases; check the collector's `debug` output (after
 
 | Span | Expected |
 |------|----------|
-| `normal-http` | kept |
+| `normal-http` | kept; string `http.response.status_code` converted to integer |
+| `http-500` | kept; string status converted to integer and span status set to Error |
 | `hc-url.path`, `hc-http.target`, `hc-http.route`, `hc-http.url`, `hc-uri`, `GET /healthcheck` (healthcheck in the attribute / span name) | dropped |
 | `kafka-consumer` (kind CONSUMER, with `peer.service`) | kept, `peer.service` removed |
 | `kafka-producer` (kind PRODUCER, with `peer.service`) | kept, `peer.service` retained |

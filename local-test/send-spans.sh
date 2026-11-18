@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Sends test spans to the local collector. Expected in `debug` output (after ~2s):
-#   KEPT    "normal-http"        (no healthcheck)
+#   KEPT    "normal-http"        (no healthcheck; string status code converted to integer)
+#   KEPT    "http-500"            (status code converted to integer and span status set to Error)
 #   DROPPED "hc-url.path", "hc-http.target", "hc-http.route", "hc-http.url", "hc-uri", "GET /healthcheck" (name)
 #   KEPT    "kafka-consumer"     WITHOUT peer.service
 #   KEPT    "kafka-producer"     WITH peer.service (only CONSUMER is stripped)
@@ -18,7 +19,8 @@ EOF
 s() { echo "{\"key\":\"$1\",\"value\":{\"stringValue\":\"$2\"}}"; }
 
 SPANS_LIST=(
-  "$(span normal-http 2 "$(s url.path /api/users)")"                                                               # logged
+  "$(span normal-http 2 "$(s url.path /api/users),$(s http.response.status_code 200)")"                          # logged; status code converted to integer
+  "$(span http-500 2 "$(s http.response.status_code 500)")"                                                        # status converted and span marked Error
   "$(span hc-url.path 2 "$(s url.path /healthcheck)")"                                                             # dropped (as healthcheck)
   "$(span hc-http.target 2 "$(s http.target /healthcheck)")"                                                       # dropped
   "$(span hc-http.route 2 "$(s http.route /healthcheck)")"                                                         # dropped
