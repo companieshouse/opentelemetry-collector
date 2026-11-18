@@ -41,6 +41,16 @@ processors:
           # ends up named after the span (e.g. "cidev-psc-delta process"). `rpc.service` is read before that fallback.
           - set(span.attributes["rpc.service"], resource.attributes["service.name"]) where span.kind == SPAN_KIND_CONSUMER and resource.attributes["service.name"] != nil
 
+  transform/http_status_code:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # If the HTTP status arrives as strings; convert it to numeric value so the consumers such as X-Ray can read it.
+          - set(span.attributes["http.response.status_code"], Int(span.attributes["http.response.status_code"])) where IsString(span.attributes["http.response.status_code"]) and IsMatch(span.attributes["http.response.status_code"], "^[0-9]+$")
+          # Mark 5xx responses as errors so the error-traces sampling policy keeps them.
+          - set(span.status.code, STATUS_CODE_ERROR) where IsInt(span.attributes["http.response.status_code"]) and span.attributes["http.response.status_code"] >= 500 and span.attributes["http.response.status_code"] < 600
+
   tail_sampling:
     policies: [
       {
@@ -94,7 +104,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [filter/drop_healthcheck_attributes,transform/consumer_service_name,tail_sampling,batch/traces]
+      processors: [filter/drop_healthcheck_attributes,transform/consumer_service_name,transform/http_status_code,tail_sampling,batch/traces]
       exporters: [debug,awsxray]
     metrics:
       receivers: [otlp]
