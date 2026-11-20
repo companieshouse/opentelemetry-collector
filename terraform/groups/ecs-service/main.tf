@@ -88,6 +88,6 @@ resource "aws_ssm_parameter" "otel_collector_config" {
   type        = "String"
   tier        = "Standard"
   data_type   = "text"
-  value       = file("${path.module}/gateway-otel-collector-config.yaml") # or use inline value
+  value       = jsonencode(yamldecode(file("${path.module}/gateway-otel-collector-config.yaml")))
 }
 

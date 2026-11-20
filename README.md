@@ -12,6 +12,8 @@ To deploy the new image to ECR, merge changes into the `main` branch and deploy 
 
 ## Updating Collector config
 The Collector config is defined in `terraform/groups/ecs-service/gateway-otel-collector-config.yaml`.
+Terraform stores it as compact JSON in SSM Parameter Store to reduce its size while retaining the Standard tier.
+The stored value must remain within the Standard tier's 4 KB limit.
 
 ## Infrastructure
 The terraform in `terraform/groups/infrastructure` is responsible for provisioning the ECS cluster and ALB for the Collector service.
@@ -143,4 +145,3 @@ Attributes:
 	{"resource": {"service.instance.id": "342ab128-73a9-4123-aaf1-7bb159ddae35", "service.name": "otelcol-contrib", "service.version": "0.128.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
 ```
 </details>
-
